@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Keeping builds from slowing production on a single-server Docker panel</title><meta name="description" content="Limiting CPU, memory and IO for image builds so live apps stay responsive during deploys."><link rel="canonical" href="https://princeadvant.github.io/selfhost-ops-journal/keeping-builds-from-slowing-production-on-a-single-server-docker-panel/"><style>body{max-width:720px;margin:2rem auto;padding:0 1rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#1f2328}pre{background:#f6f8fa;padding:1rem;overflow:auto;border-radius:6px}code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.4rem .6rem}a{color:#0969da}header a{color:#1f2328;text-decoration:none;font-weight:600}footer{margin-top:3rem;font-size:.9rem;color:#57606a}</style></head><body><header><a href="https://princeadvant.github.io/selfhost-ops-journal/">Self-Host Ops Journal</a></header><main><article><h1>Keeping builds from slowing production on a single-server Docker panel</h1><p>On a single server running a self-hosted Docker panel, every deploy starts an image build next to the live apps. A Next.js or Rust build can take all CPU cores and a few gigabytes of memory for minutes. Users notice. A few controls keep production responsive.</p>
+<h2>See it first</h2>
+<p>Open <code>htop</code> during a deploy, or watch the app's response times. If p95 latency doubles while a build runs, contention is the cause.</p>
+<h2>Limit build parallelism</h2>
+<p>Many toolchains use every core by default. Cap them in the Dockerfile:</p>
+<pre><code>ENV NODE_OPTIONS=--max-old-space-size=1536
+RUN CARGO_BUILD_JOBS=2 cargo build --release
+</code></pre>
+<p>For Go, <code>GOMAXPROCS=2</code> during <code>go build</code>; for make-based builds, <code>-j2</code>.</p>
+<h2>Run the builder at lower priority</h2>
+<p>If you run builds from a script, prefix them with <code>nice -n 10 ionice -c3</code>. The scheduler then serves the live containers first. Some panels let you set build resource limits directly; check yours.</p>
+<h2>Give the apps guaranteed memory</h2>
+<p>Set memory limits on build containers, and make sure live apps have enough headroom that a build cannot push them into swap or the OOM killer.</p>
+<h2>Cache aggressively</h2>
+<p>Order Dockerfile steps so dependency installs are cached. A build that reuses its dependency layer finishes in a fraction of the time and competes for less.</p>
+<h2>Move builds elsewhere</h2>
+<p>The cleanest fix is building on another machine: CI that pushes images to a registry, or a panel that supports a separate build server. Production then only pulls and runs.</p>
+<h2>Schedule big rebuilds</h2>
+<p>Base image refreshes that rebuild every app can run at night.</p>
+<p>When comparing panels, ask whether they support build servers and build resource limits. The <a href="https://peon.sh/blogs/peon-vs-easypanel">Peon vs Easypanel comparison</a> covers this and other differences. I work on <a href="https://peon.sh/">Peon</a>, an open-source self-hosted deployment platform.</p></article></main><footer>Practical notes on deploying and running Docker apps on your own servers: deploys, logs, backups, domains and tooling.</footer></body></html>

@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kubernetes version support windows: what they mean for a small team</title><meta name="description" content="How the Kubernetes release cycle turns into calendar time for a team running its own clusters."><link rel="canonical" href="https://princeadvant.github.io/selfhost-ops-journal/kubernetes-version-support-windows-what-they-mean-for-a-small-team/"><style>body{max-width:720px;margin:2rem auto;padding:0 1rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#1f2328}pre{background:#f6f8fa;padding:1rem;overflow:auto;border-radius:6px}code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.4rem .6rem}a{color:#0969da}header a{color:#1f2328;text-decoration:none;font-weight:600}footer{margin-top:3rem;font-size:.9rem;color:#57606a}</style></head><body><header><a href="https://princeadvant.github.io/selfhost-ops-journal/">Self-Host Ops Journal</a></header><main><article><h1>Kubernetes version support windows: what they mean for a small team</h1><p>Kubernetes ships a new minor version roughly three times a year, and each minor version receives patches for about fourteen months. Those two numbers decide how much of a small team's year goes into cluster upgrades.</p>
+<h2>The math</h2>
+<p>If each version is supported for about fourteen months and new ones arrive every four months or so, you need to upgrade at least once a year just to stay supported. Skipping versions is not allowed for the control plane: you upgrade one minor version at a time.</p>
+<h2>What one upgrade involves</h2>
+<ul>
+<li>Reading the changelog for removed APIs and deprecations.</li>
+<li>Checking every Helm chart and manifest for those APIs.</li>
+<li>Upgrading the control plane, then nodes, one pool at a time.</li>
+<li>Upgrading add-ons: ingress controller, CNI, cert-manager, monitoring. Each has its own compatibility matrix.</li>
+<li>Testing workloads after each step.</li>
+</ul>
+<p>A management layer automates the mechanics. It does not remove the reading, checking and testing.</p>
+<h2>Managed Kubernetes changes the shape, not the duty</h2>
+<p>Cloud providers handle the control plane, but they also enforce the support window and will eventually upgrade clusters for you. You still own the workloads and add-ons.</p>
+<h2>The questions to ask</h2>
+<ul>
+<li>Who on the team does this, and how many days per year?</li>
+<li>What breaks if an upgrade slips by six months?</li>
+<li>Would a simpler Docker host with a deployment platform need less of that time?</li>
+</ul>
+<h2>When it is worth it</h2>
+<p>If you already run several clusters, need fine-grained scheduling or rely on operators, the upgrade work is the price of features you use. If not, it is overhead.</p>
+<p>For a direct comparison of a cluster management approach and a Docker-based platform, see <a href="https://peon.sh/blogs/peon-vs-rancher">Peon vs Rancher</a>. I work on <a href="https://peon.sh/">Peon</a>, an open-source self-hosted deployment platform.</p></article></main><footer>Practical notes on deploying and running Docker apps on your own servers: deploys, logs, backups, domains and tooling.</footer></body></html>

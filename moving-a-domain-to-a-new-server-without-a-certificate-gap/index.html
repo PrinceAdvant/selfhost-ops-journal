@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moving a domain to a new server without a certificate gap</title><meta name="description" content="Getting TLS working on the new server before DNS switches, so visitors never see a certificate error."><link rel="canonical" href="https://princeadvant.github.io/selfhost-ops-journal/moving-a-domain-to-a-new-server-without-a-certificate-gap/"><style>body{max-width:720px;margin:2rem auto;padding:0 1rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#1f2328}pre{background:#f6f8fa;padding:1rem;overflow:auto;border-radius:6px}code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.4rem .6rem}a{color:#0969da}header a{color:#1f2328;text-decoration:none;font-weight:600}footer{margin-top:3rem;font-size:.9rem;color:#57606a}</style></head><body><header><a href="https://princeadvant.github.io/selfhost-ops-journal/">Self-Host Ops Journal</a></header><main><article><h1>Moving a domain to a new server without a certificate gap</h1><p>Migrating an app to a new server usually goes like this: deploy on the new server, switch DNS, wait for a certificate. During that wait, some visitors reach the new server and get a certificate warning. You can avoid the gap.</p>
+<h2>Why it happens</h2>
+<p>The default Let's Encrypt HTTP challenge needs the domain to already point at the new server. Until DNS changes, the new server cannot get a certificate. After DNS changes, the first visitors arrive before the certificate is issued.</p>
+<h2>Option 1: DNS challenge</h2>
+<p>If your proxy supports the DNS-01 challenge with your DNS provider, the new server can obtain the certificate before any traffic arrives. Give it an API token scoped to the one zone. Once the certificate is in place, switch the record.</p>
+<h2>Option 2: copy the certificate</h2>
+<p>Copy the current certificate and key from the old server to the new one and configure the proxy to use them until its own certificate is issued. Keep file permissions tight and delete the copy afterwards.</p>
+<h2>Option 3: forward the challenge</h2>
+<p>On the old server, proxy requests for <code>/.well-known/acme-challenge/</code> to the new server. The new server can then complete the HTTP challenge while DNS still points at the old one.</p>
+<h2>Lower the TTL first</h2>
+<p>A day before the move, drop the record's TTL to 300 seconds. The switch then propagates in minutes.</p>
+<h2>Verify before switching</h2>
+<pre><code>curl -sI --resolve app.example.com:443:NEW_IP https://app.example.com | head -1
+</code></pre>
+<p>A 200 with no certificate error means you are ready.</p>
+<h2>Keep the old server up</h2>
+<p>Leave it running until traffic on it stops.</p>
+<p>The Peon docs on <a href="https://peon.sh/docs/domains-and-ssl">custom domains and automatic SSL</a> show how domains are attached to services. I work on <a href="https://peon.sh/">Peon</a>, an open-source self-hosted deployment platform.</p></article></main><footer>Practical notes on deploying and running Docker apps on your own servers: deploys, logs, backups, domains and tooling.</footer></body></html>

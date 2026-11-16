@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Encrypting Docker volume backups before they leave the server</title><meta name="description" content="Using restic to send encrypted, deduplicated volume backups to object storage, and where to keep the key."><link rel="canonical" href="https://princeadvant.github.io/selfhost-ops-journal/encrypting-docker-volume-backups-before-they-leave-the-server/"><style>body{max-width:720px;margin:2rem auto;padding:0 1rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#1f2328}pre{background:#f6f8fa;padding:1rem;overflow:auto;border-radius:6px}code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.4rem .6rem}a{color:#0969da}header a{color:#1f2328;text-decoration:none;font-weight:600}footer{margin-top:3rem;font-size:.9rem;color:#57606a}</style></head><body><header><a href="https://princeadvant.github.io/selfhost-ops-journal/">Self-Host Ops Journal</a></header><main><article><h1>Encrypting Docker volume backups before they leave the server</h1><p>A tarball of a Docker volume uploaded to object storage is readable by anyone who gets the bucket credentials. Encrypting on the server before upload means a leaked bucket exposes nothing useful.</p>
+<h2>restic does most of the work</h2>
+<p>restic encrypts, deduplicates and uploads in one step, and supports S3-compatible storage:</p>
+<pre><code>export RESTIC_REPOSITORY=s3:https://s3.example.com/backups/app
+export RESTIC_PASSWORD_FILE=/root/.restic-pass
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+restic init
+</code></pre>
+<h2>Back up a volume</h2>
+<p>Mount the volume read-only into a restic container, so the backup cannot modify data:</p>
+<pre><code>docker run --rm -v app_data:/data:ro \
+  -e RESTIC_REPOSITORY -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY \
+  -v /root/.restic-pass:/pass:ro -e RESTIC_PASSWORD_FILE=/pass \
+  restic/restic backup /data --tag app_data
+</code></pre>
+<p>For databases, back up a dump file rather than the live data directory.</p>
+<h2>Retention</h2>
+<pre><code>restic forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune
+</code></pre>
+<p>Deduplication keeps this cheap: unchanged files are stored once.</p>
+<h2>The key is the backup</h2>
+<p>Without the repository password, the backups are useless, including to you. Store it in a password manager that is not hosted on the same server, and give a second person access. Losing the server and the key together is the worst case.</p>
+<h2>Check integrity</h2>
+<p><code>restic check</code> verifies the repository. Once a month, run <code>restic restore latest --target /tmp/restore-test</code> and look at the files.</p>
+<h2>Separate credentials</h2>
+<p>The bucket key on the server should not be able to delete old snapshots if your provider supports that restriction. Run <code>forget --prune</code> from a different machine with a stronger key.</p>
+<p>A broader guide to <a href="https://peon.sh/blogs/how-to-back-up-docker-volumes">back up Docker volumes</a> is on the Peon blog. I work on <a href="https://peon.sh/">Peon</a>, an open-source self-hosted deployment platform.</p></article></main><footer>Practical notes on deploying and running Docker apps on your own servers: deploys, logs, backups, domains and tooling.</footer></body></html>

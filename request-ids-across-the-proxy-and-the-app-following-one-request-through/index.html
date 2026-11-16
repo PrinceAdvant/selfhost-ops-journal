@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Request IDs across the proxy and the app: following one request through Docker logs</title><meta name="description" content="Adding a request ID at the reverse proxy and logging it in the app so incidents can be traced quickly."><link rel="canonical" href="https://princeadvant.github.io/selfhost-ops-journal/request-ids-across-the-proxy-and-the-app-following-one-request-through/"><style>body{max-width:720px;margin:2rem auto;padding:0 1rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#1f2328}pre{background:#f6f8fa;padding:1rem;overflow:auto;border-radius:6px}code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.4rem .6rem}a{color:#0969da}header a{color:#1f2328;text-decoration:none;font-weight:600}footer{margin-top:3rem;font-size:.9rem;color:#57606a}</style></head><body><header><a href="https://princeadvant.github.io/selfhost-ops-journal/">Self-Host Ops Journal</a></header><main><article><h1>Request IDs across the proxy and the app: following one request through Docker logs</h1><p>When a user reports an error, the proxy log has one line for it and the app log has several, often in different containers. A request ID that appears in all of them turns a search through thousands of lines into one grep.</p>
+<h2>Generate it at the edge</h2>
+<p>The reverse proxy should set an ID if the request does not already have one, and pass it on as a header.</p>
+<p>Caddy:</p>
+<pre><code>header_up X-Request-ID {http.request.uuid}
+</code></pre>
+<p>Nginx (1.11 and later):</p>
+<pre><code>proxy_set_header X-Request-ID $request_id;
+</code></pre>
+<p>Also log it in the proxy's access log format.</p>
+<h2>Read it in the app</h2>
+<p>Add a small middleware that reads <code>X-Request-ID</code>, generates one if missing, stores it in the request context and adds it to every log line. Most logging libraries support a per-request child logger for exactly this.</p>
+<p>Return it to the client in a response header too. Support can then ask the user for it.</p>
+<h2>Pass it to other services</h2>
+<p>When the app calls another internal service, forward the same header. Workers that process jobs should store the ID with the job and log it when they run it.</p>
+<h2>Searching</h2>
+<pre><code>docker logs api 2&gt;&amp;1 | grep 7f3c2a9e
+docker logs worker 2&gt;&amp;1 | grep 7f3c2a9e
+</code></pre>
+<p>With a central log store, it is a single query across containers.</p>
+<h2>Do not log secrets with it</h2>
+<p>A request ID is safe to show. Keep tokens and cookies out of the log line next to it.</p>
+<p>There is more on <a href="https://peon.sh/blogs/handle-docker-logs-production">handling Docker logs in production</a> on the Peon blog. I work on <a href="https://peon.sh/">Peon</a>, an open-source self-hosted deployment platform.</p></article></main><footer>Practical notes on deploying and running Docker apps on your own servers: deploys, logs, backups, domains and tooling.</footer></body></html>

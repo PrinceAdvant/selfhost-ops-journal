@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Measuring dropped requests during a deploy with a simple load loop</title><meta name="description" content="A small test that tells you exactly how many requests fail while a new version rolls out."><link rel="canonical" href="https://princeadvant.github.io/selfhost-ops-journal/measuring-dropped-requests-during-a-deploy-with-a-simple-load-loop/"><style>body{max-width:720px;margin:2rem auto;padding:0 1rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#1f2328}pre{background:#f6f8fa;padding:1rem;overflow:auto;border-radius:6px}code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.4rem .6rem}a{color:#0969da}header a{color:#1f2328;text-decoration:none;font-weight:600}footer{margin-top:3rem;font-size:.9rem;color:#57606a}</style></head><body><header><a href="https://princeadvant.github.io/selfhost-ops-journal/">Self-Host Ops Journal</a></header><main><article><h1>Measuring dropped requests during a deploy with a simple load loop</h1><p>"Zero downtime" is easy to claim and easy to measure. Before trusting any deploy setup, run a load loop against it during a real deploy and count the failures.</p>
+<h2>The loop</h2>
+<pre><code>end=$((SECONDS+120)); ok=0; bad=0
+while [ $SECONDS -lt $end ]; do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 https://app.example.com/healthz)
+  if [ &quot;$code&quot; = &quot;200&quot; ]; then ok=$((ok+1)); else bad=$((bad+1)); echo &quot;$(date +%T) $code&quot;; fi
+  sleep 0.2
+done
+echo &quot;ok=$ok bad=$bad&quot;
+</code></pre>
+<p>Start it, trigger a deploy, and read the output. Every non-200 line has a timestamp, so you can line it up with the deploy log.</p>
+<h2>Test a real page too</h2>
+<p>Health endpoints are cheap. Add a second loop against a page that touches the database, because failures often come from connection pools that are not ready yet.</p>
+<h2>Use a load tool for concurrency</h2>
+<p>A single curl loop sends one request at a time. Tools like <code>hey</code> or <code>k6</code> send many in parallel and catch errors that only appear under load, such as the old container refusing new connections while it drains:</p>
+<pre><code>hey -z 120s -c 20 https://app.example.com/
+</code></pre>
+<h2>What the results usually show</h2>
+<ul>
+<li><strong>A burst of 502s:</strong> the proxy switched before the new container was listening. Add or fix the health check.</li>
+<li><strong>Connection resets at the end:</strong> the old container was killed instead of drained. Handle <code>SIGTERM</code> and set a stop timeout.</li>
+<li><strong>A few 500s:</strong> a migration ran before the old code stopped. Make migrations backward compatible.</li>
+</ul>
+<h2>Keep it in CI</h2>
+<p>Run the loop against staging on every deploy and fail the pipeline if <code>bad</code> is above zero.</p>
+<p>A longer guide to <a href="https://peon.sh/blogs/zero-downtime-deployments-vps">zero-downtime deployments on a VPS</a> covers the setups that pass this test. I work on <a href="https://peon.sh/">Peon</a>, an open-source self-hosted deployment platform.</p></article></main><footer>Practical notes on deploying and running Docker apps on your own servers: deploys, logs, backups, domains and tooling.</footer></body></html>

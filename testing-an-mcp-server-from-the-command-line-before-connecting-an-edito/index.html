@@ -1,0 +1,19 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Testing an MCP server from the command line before connecting an editor</title><meta name="description" content="Using the MCP Inspector and a few checks to confirm a deployment MCP server works before adding it to an AI client."><link rel="canonical" href="https://princeadvant.github.io/selfhost-ops-journal/testing-an-mcp-server-from-the-command-line-before-connecting-an-edito/"><style>body{max-width:720px;margin:2rem auto;padding:0 1rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.65;color:#1f2328}pre{background:#f6f8fa;padding:1rem;overflow:auto;border-radius:6px}code{background:#f6f8fa;padding:.1rem .3rem;border-radius:4px}table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.4rem .6rem}a{color:#0969da}header a{color:#1f2328;text-decoration:none;font-weight:600}footer{margin-top:3rem;font-size:.9rem;color:#57606a}</style></head><body><header><a href="https://princeadvant.github.io/selfhost-ops-journal/">Self-Host Ops Journal</a></header><main><article><h1>Testing an MCP server from the command line before connecting an editor</h1><p>When an AI client cannot use an MCP server, the error is often vague: the tools do not appear, or calls fail silently. Testing the server directly first separates server problems from client configuration problems.</p>
+<h2>Use the MCP Inspector</h2>
+<p>The official inspector runs locally and connects to a server over stdio or HTTP:</p>
+<pre><code>npx @modelcontextprotocol/inspector
+</code></pre>
+<p>Open the URL it prints, choose the transport, enter the server command or URL and any auth header, then connect.</p>
+<h2>Check the tool list</h2>
+<p>Once connected, list tools. Each tool should have a clear name, a description and an input schema. If the list is empty, the problem is authentication or the server itself, not your editor.</p>
+<h2>Call a read-only tool</h2>
+<p>Start with something harmless such as listing projects or services. Compare the result with the dashboard. A mismatch usually means the token belongs to a different workspace or has a narrower scope than you thought.</p>
+<h2>Check errors are useful</h2>
+<p>Call a tool with a wrong argument on purpose. A good server returns a readable error. If it returns nothing, the client will show nothing too.</p>
+<h2>Then configure the client</h2>
+<p>Copy the exact command, URL and headers that worked in the inspector into the client's MCP config. Most failures at this step are a missing environment variable or a wrong path to the server binary.</p>
+<h2>Keep tokens out of shared configs</h2>
+<p>Client config files often end up in dotfile repositories. Reference the token from an environment variable rather than pasting it into the file.</p>
+<h2>Re-test after upgrades</h2>
+<p>When the server or client updates, rerun the inspector check. Tool names and schemas can change.</p>
+<p>The Peon <a href="https://peon.sh/docs/mcp">MCP server documentation</a> lists the tools it exposes and how to connect a client. I work on <a href="https://peon.sh/">Peon</a>, an open-source self-hosted deployment platform.</p></article></main><footer>Practical notes on deploying and running Docker apps on your own servers: deploys, logs, backups, domains and tooling.</footer></body></html>
